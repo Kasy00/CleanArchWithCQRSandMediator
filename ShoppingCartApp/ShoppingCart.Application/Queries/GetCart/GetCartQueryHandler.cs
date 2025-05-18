@@ -1,5 +1,6 @@
 using AutoMapper;
 using MediatR;
+using ShoppingCart.Api.Middleware.Exceptions;
 using ShoppingCart.Application.Dto;
 using ShoppingCart.Domain.Interfaces;
 

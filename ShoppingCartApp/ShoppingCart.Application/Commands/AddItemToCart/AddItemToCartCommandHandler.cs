@@ -1,4 +1,5 @@
 using MediatR;
+using ShoppingCart.Api.Middleware.Exceptions;
 using ShoppingCart.Domain.Interfaces;
 
 namespace ShoppingCart.Application.Commands.AddItemToCart;

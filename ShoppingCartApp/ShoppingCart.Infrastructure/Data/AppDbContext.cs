@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using ShoppingCart.Infrastructure.Entities;
 
 namespace ShoppingCart.Infrastructure.Data;
 
@@ -12,7 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<CartItemEntity> CartItems { get; set; }
     public DbSet<OrderEntity> Orders { get; set; }
 
-    protected override void OodelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<CartEntity>()
             .HasMany(c => c.Items)

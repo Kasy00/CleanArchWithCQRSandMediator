@@ -1,4 +1,5 @@
 using MediatR;
+using ShoppingCart.Api.Middleware.Exceptions;
 using ShoppingCart.Domain.Interfaces;
 using ShoppingCart.Domain.Models;
 
@@ -15,7 +16,7 @@ public class FinalizeCartCommandHandler : IRequestHandler<FinalizeCartCommand, G
         _orderRepository = orderRepository;
     }
 
-    public async Task<Guid> Handler(FinalizeCartCommand request, CancellationToken cancellationToken)
+    public async Task<Guid> Handle(FinalizeCartCommand request, CancellationToken cancellationToken)
     {
         var cart = await _cartRepository.GetById(request.CartId);
         if (cart == null)
