@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ShoppingCart.Infrastructure.Entities;
 
 public class CartEntity
@@ -8,4 +10,7 @@ public class CartEntity
     public List<CartItemEntity> Items { get; set; } = new List<CartItemEntity>();
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    
+    [Timestamp]
+    public uint Version { get; set; }
 }

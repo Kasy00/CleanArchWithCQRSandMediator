@@ -1,3 +1,4 @@
+using System.Data;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using ShoppingCart.Api.Middleware.Exceptions;
@@ -14,6 +15,7 @@ public class CartRepository : ICartRepository
     private readonly AppDbContext _context;
     private readonly ILogger<CartRepository> _logger;
     private readonly IMapper _mapper;
+    private readonly int _maxRetries = 3;
 
     public CartRepository(AppDbContext context, ILogger<CartRepository> logger, IMapper mapper)
     {
@@ -62,44 +64,92 @@ public class CartRepository : ICartRepository
 
     public async Task Update(Cart cart)
     {
-        using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead);
+        int retryCount = 0;
+        bool success = false;
 
-        try
+        while (!success && retryCount < _maxRetries)
         {
-            var existingCart = await _context.Carts
-                .Include(c => c.Items)
-                .FirstOrDefaultAsync(c => c.Id == cart.Id);
-
-            if (existingCart == null)
+            try
             {
-                throw new NotFoundException($"Cart with ID {cart.Id} not found during update");
+                var existingCart = await _context.Carts
+                    .Include(c => c.Items)
+                    .FirstOrDefaultAsync(c => c.Id == cart.Id);
+
+                if (existingCart == null)
+                {
+                    throw new NotFoundException($"Cart with ID {cart.Id} not found during update");
+                }
+
+                existingCart.Status = cart.Status.ToString();
+                existingCart.UpdatedAt = cart.UpdatedAt;
+
+                UpdateCartItems(existingCart, cart);
+
+                await _context.SaveChangesAsync();
+                success = true;
+
+                _logger.LogInformation($"Cart {cart.Id} updated successfully");
             }
-
-            existingCart.Status = cart.Status.ToString();
-            existingCart.UpdatedAt = cart.UpdatedAt;
-
-            _context.CartItems.RemoveRange(existingCart.Items);
-
-            existingCart.Items = cart.Items.Select(i => new CartItemEntity
+            catch (DbUpdateConcurrencyException ex)
             {
-                Id = Guid.NewGuid(),
-                CartId = cart.Id,
-                ProductId = i.ProductId,
-                ProductName = i.ProductName,
-                Price = i.Price,
-                Quantity = i.Quantity
-            }).ToList();
+                retryCount++;
 
-            await _context.SaveChangesAsync();
-            await transaction.CommitAsync();
+                if (retryCount >= _maxRetries)
+                {
+                    _logger.LogError(ex, $"Failed to update cart {cart.Id} after {_maxRetries} attempts due to concurrency conflicts");
+                    throw new DBConcurrencyException($"Cart with ID {cart.Id} was modified by another process and update failed after {_maxRetries} attempts");
+                }
 
-            _logger.LogInformation($"Cart {cart.Id} updated successfully");
+                _context.ChangeTracker.Clear();
+
+                await Task.Delay(50 * retryCount);
+
+                _logger.LogWarning($"Concurrency conflict detected for cart {cart.Id}. Retry attempt {retryCount}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error updating cart {cart.Id}");
+                throw;
+            }
         }
-        catch (Exception ex)
+    }
+
+    private void UpdateCartItems(CartEntity existingCart, Cart cart)
+    {
+        var itemsToRemove = existingCart.Items
+            .Where(existingItem => !cart.Items.Any(item => item.ProductId == existingItem.ProductId))
+            .ToList();
+
+        foreach (var itemToRemove in itemsToRemove)
         {
-            await transaction.RollbackAsync();
-            _logger.LogError(ex, $"Error updating cart {cart.Id}");
-            throw;
+            existingCart.Items.Remove(itemToRemove);
+            _context.CartItems.Remove(itemToRemove);
+        }
+
+        foreach (var item in cart.Items)
+        {
+            var existingItem = existingCart.Items.FirstOrDefault(i => i.ProductId == item.ProductId);
+
+            if (existingItem == null)
+            {
+                var newItem = new CartItemEntity
+                {
+                    Id = Guid.NewGuid(),
+                    CartId = cart.Id,
+                    ProductId = item.ProductId,
+                    ProductName = item.ProductName,
+                    Price = item.Price,
+                    Quantity = item.Quantity
+                };
+
+                existingCart.Items.Add(newItem);
+            }
+            else
+            {
+                existingItem.ProductName = item.ProductName;
+                existingItem.Price = item.Price;
+                existingItem.Quantity = item.Quantity;
+            }
         }
     }
 }

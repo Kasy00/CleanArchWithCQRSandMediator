@@ -23,5 +23,11 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<CartEntity>()
             .HasIndex(c => new { c.UserId, c.Status });
+
+        modelBuilder.Entity<CartEntity>()
+            .Property(e => e.Version)
+            .IsRowVersion()
+            .HasColumnName("xmin")
+            .IsConcurrencyToken();
     }
 }
