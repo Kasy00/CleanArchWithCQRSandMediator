@@ -13,7 +13,7 @@ using ShoppingCart.Application.Queries.GetCart;
 namespace ShoppingCart.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1")]
 public class CartsController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -207,7 +207,6 @@ public class CartsController : ControllerBase
     {
         try
         {
-            // W rzeczywistej aplikacji pobieralibyśmy UserId z tokenu JWT
             if (!Request.Headers.TryGetValue("X-User-Id", out var userIdHeader))
             {
                 return Unauthorized("User ID is required");
@@ -260,7 +259,6 @@ public class CartsController : ControllerBase
     {
         try
         {
-            // W rzeczywistej aplikacji pobieralibyśmy UserId z tokenu JWT
             if (!Request.Headers.TryGetValue("X-User-Id", out var userIdHeader))
             {
                 return Unauthorized("User ID is required");

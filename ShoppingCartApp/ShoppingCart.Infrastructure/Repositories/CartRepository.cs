@@ -46,7 +46,7 @@ public class CartRepository : ICartRepository
         return _mapper.Map<IEnumerable<Cart>>(cartEntities);
     }
 
-    public async Task<Cart?> GetActiveCartByUserId(Guid userId)
+    public async Task<Cart> GetActiveCartByUserId(Guid userId)
     {
         var cartEntity = await _context.Carts
             .Include(c => c.Items)
